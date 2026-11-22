@@ -46,6 +46,7 @@ from .social_migrations import migrate_social
 from .schemas import AccountDeleteRequest, ConversationCreate, EchoCreate, ImageCaptionRequest, LoginRequest, MessageCreate, MomentCreate, MomentOut, PositionUpdate, PrivacyUpdate, PromptRequest, RegisterRequest, ReplySuggestionRequest, ResonanceCreate, SuggestionFeedbackCreate, VerificationRequest
 from .seed import seed_database
 from .models import Notification
+from .registration import allowed_student_ids, require_registration_invite
 
 UPLOAD_DIR = Path(os.getenv("MOUKE_UPLOAD_DIR", Path(__file__).resolve().parent / "uploads"))
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
@@ -112,6 +113,7 @@ def ensure_map_source() -> dict:
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     validate_production_config()
+    allowed_student_ids()
     Base.metadata.create_all(engine)
     # 旧库补列是 SQLite 时代的历史包袱。PostgreSQL 用当前模型 create_all 建库，
     # 没有“表是旧版本”的情况；PRAGMA 在 PG 上也不存在。
@@ -501,6 +503,7 @@ def request_verification_code(payload: VerificationRequest, db: Session = Depend
         "request_code_subject", student_id,
         *auth_security.REQUEST_CODE_SUBJECT, message="该学号获取验证码过于频繁，请稍后再试",
     )
+    require_registration_invite(student_id)
     if db.scalar(select(User).where(or_(User.student_id == student_id, User.email == email))):
         raise HTTPException(409, "该学号已经注册")
     latest = db.scalar(select(VerificationCode).where(VerificationCode.student_id == student_id).order_by(VerificationCode.created_at.desc()))
@@ -528,6 +531,7 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db), request: R
     )
     if email != f"{student_id.lower()}@hust.edu.cn":
         raise HTTPException(400, "教育邮箱与学号不一致")
+    require_registration_invite(student_id)
     if db.scalar(select(User).where(or_(User.student_id == student_id, User.email == email))):
         raise HTTPException(409, "该学号已经注册")
     code = db.scalar(select(VerificationCode).where(VerificationCode.student_id == student_id, VerificationCode.email == email, VerificationCode.consumed.is_(False)).order_by(VerificationCode.created_at.desc()))
