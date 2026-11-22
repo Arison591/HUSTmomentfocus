@@ -27,6 +27,7 @@ from app.models import (  # noqa: E402
     AiUsage,
     AnalyticsEvent,
     AuthSession,
+    Notification,
     SuggestionFeedback,
     VerificationCode,
 )
@@ -35,6 +36,7 @@ from app.models import (  # noqa: E402
 def tasks(now: datetime):
     return [
         ("过期登录会话", AuthSession, AuthSession.expires_at < now),
+        ("90 天前互动通知", Notification, Notification.created_at < now - timedelta(days=90)),
         (
             "过期或已用验证码",
             VerificationCode,

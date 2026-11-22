@@ -45,6 +45,7 @@ from .social import blocked_pair, conversation_state, get_conversation, privacy_
 from .social_migrations import migrate_social
 from .schemas import AccountDeleteRequest, ConversationCreate, EchoCreate, ImageCaptionRequest, LoginRequest, MessageCreate, MomentCreate, MomentOut, PositionUpdate, PrivacyUpdate, PromptRequest, RegisterRequest, ReplySuggestionRequest, ResonanceCreate, SuggestionFeedbackCreate, VerificationRequest
 from .seed import seed_database
+from .models import Notification
 
 UPLOAD_DIR = Path(os.getenv("MOUKE_UPLOAD_DIR", Path(__file__).resolve().parent / "uploads"))
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
@@ -618,6 +619,7 @@ def delete_account(payload: AccountDeleteRequest, user: Annotated[User, Depends(
     db.execute(update(ChatMessage).where(ChatMessage.sender_user_id == uid).values(sender_user_id=None))
     db.execute(delete(UserBlock).where(or_(UserBlock.blocker_id == uid, UserBlock.blocked_id == uid)))
     db.execute(delete(Report).where(Report.reporter_id == uid))
+    db.execute(delete(Notification).where(Notification.user_id == uid))
     db.execute(delete(AiUsage).where(AiUsage.user_id == uid))
     db.execute(delete(SuggestionFeedback).where(SuggestionFeedback.user_id == uid))
     db.execute(delete(AnalyticsEvent).where(AnalyticsEvent.user_id == uid))
@@ -699,7 +701,13 @@ def uploaded_image(filename: str):
 def create_resonance(moment_id:int,payload:ResonanceCreate,user:Annotated[User,Depends(get_current_user)],db:Session=Depends(get_db)):
     moment = visible_moment(db, moment_id)
     if blocked_pair(db, user.id, moment.user_id): raise HTTPException(403, "无法与此用户互动")
-    db.execute(insert(Resonance).values(moment_id=moment_id,user_id=user.id,kind=payload.kind).on_conflict_do_update(index_elements=["moment_id", "user_id"], set_={"kind": payload.kind}))
+    created = db.execute(insert(Resonance).values(moment_id=moment_id, user_id=user.id, kind=payload.kind)
+                         .on_conflict_do_nothing(index_elements=["moment_id", "user_id"]))
+    if not created.rowcount:
+        db.execute(update(Resonance).where(Resonance.moment_id == moment_id, Resonance.user_id == user.id)
+                   .values(kind=payload.kind))
+    elif moment.user_id and moment.user_id != user.id:
+        db.add(Notification(user_id=moment.user_id, kind="resonance", text="有人向你的片段送出了共鸣"))
     db.commit()
     return {"resonance_count":db.scalar(select(func.count()).select_from(Resonance).where(Resonance.moment_id==moment_id)), "my_resonance": payload.kind}
 
@@ -724,7 +732,10 @@ def create_echo(moment_id:int,payload:EchoCreate,user:Annotated[User,Depends(get
     ratelimit.enforce(db, user.id, Echo, ratelimit.ECHO)
     moment = visible_moment(db, moment_id)
     if blocked_pair(db, user.id, moment.user_id): raise HTTPException(403, "无法与此用户互动")
-    db.add(Echo(moment_id=moment_id,user_id=user.id,content=public_text(payload.content))); db.commit()
+    db.add(Echo(moment_id=moment_id, user_id=user.id, content=public_text(payload.content)))
+    if moment.user_id and moment.user_id != user.id:
+        db.add(Notification(user_id=moment.user_id, kind="echo", text="有人在你的片段下留下了一条回声"))
+    db.commit()
     return {"echo_count":db.scalar(select(func.count()).select_from(Echo).where(Echo.moment_id==moment_id, Echo.is_hidden.is_(False)))}
 
 @app.get("/api/me/activity")
