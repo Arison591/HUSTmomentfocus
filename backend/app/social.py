@@ -2,7 +2,7 @@
 from datetime import datetime, timedelta
 import json
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import and_, or_, select, update
 from sqlalchemy.orm import Session, selectinload
 
@@ -174,6 +174,16 @@ def report(payload: ReportCreate, user: User = Depends(get_current_user), db: Se
             index_elements=["reporter_id", "target_type", "target_id"]))
     db.commit()
     return {"reported": True}
+
+
+@router.get("/me/reports")
+def my_reports(before: int | None = Query(None, gt=0), user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    query = select(Report).where(Report.reporter_id == user.id)
+    if before:
+        query = query.where(Report.id < before)
+    rows = list(db.scalars(query.order_by(Report.id.desc()).limit(21)))
+    return {"items": [{"id": r.id, "target_type": r.target_type, "reason": r.reason, "status": r.status,
+                      "resolution": r.resolution, "created_at": r.created_at, "resolved_at": r.resolved_at} for r in rows[:20]], "has_more": len(rows) > 20}
 
 
 @router.get("/admin/reports")
