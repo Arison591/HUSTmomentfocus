@@ -61,9 +61,6 @@ const json = async <T>(response: Response): Promise<T> => {
 }
 
 export const api = {
-  notifications: (before?: number) => request(`/api/me/notifications${before ? `?before=${before}` : ''}`).then(json<{ items: import('./types').InboxNotice[]; has_more: boolean; unread_count: number }>),
-  readNotification: (id: number) => request(`/api/me/notifications/${id}/read`, { method: 'POST' }).then(json<{ read: boolean }>),
-  myReports: (before?: number) => request(`/api/me/reports${before ? `?before=${before}` : ''}`).then(json<{ items: import('./types').MyReport[]; has_more: boolean }>),
   apiBase: currentApiBase,
   setApiBase: (value: string) => localStorage.setItem(API_BASE_KEY, value.trim().replace(/\/$/, '')),
   hasToken: () => Boolean(localStorage.getItem(TOKEN_KEY)),
@@ -82,6 +79,9 @@ export const api = {
   locations: () => fetchWithTimeout(endpoint('/api/locations')).then(json<Location[]>),
   moments: (locationId: number) => fetchWithTimeout(endpoint(`/api/locations/${locationId}/moments`)).then(json<Moment[]>),
   activity: () => request('/api/me/activity').then(json<Activity>),
+  notifications: (before?: number) => request(`/api/me/notifications${before ? `?before=${before}` : ''}`).then(json<{ items: import('./types').InboxNotice[]; has_more: boolean; unread_count: number }>),
+  readNotification: (id: number) => request(`/api/me/notifications/${id}/read`, { method: 'POST' }).then(json<{ read: boolean }>),
+  myReports: (before?: number) => request(`/api/me/reports${before ? `?before=${before}` : ''}`).then(json<{ items: import('./types').MyReport[]; has_more: boolean }>),
   styleProfile: () => request('/api/me/style-profile').then(json<StyleProfile>),
   mapStyleUrl: () => absoluteEndpoint('/api/map/style.json'),
   mapTileTemplate: () => absoluteEndpoint('/api/map/tiles/{z}/{x}/{y}.pbf'),

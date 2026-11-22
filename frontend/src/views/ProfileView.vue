@@ -3,9 +3,9 @@ import { computed, onMounted, ref } from 'vue'
 import { useCampusApp } from '../composables/useCampusApp'
 import { maskEmail, maskStudentId } from '../utils/privacy'
 import { api } from '../api'
+import InboxPanel from '../components/InboxPanel.vue'
 import type { BlockedUser } from '../types'
 import MomentActions from '../components/MomentActions.vue'
-import InboxPanel from '../components/InboxPanel.vue'
 
 const app = useCampusApp()
 const safeStudentId = computed(() => app.currentUser.value ? maskStudentId(app.currentUser.value.student_id) : '')
@@ -71,6 +71,7 @@ onMounted(load)
       <button class="privacy-toggle" :class="{ active: app.currentUser.value?.share_location }" @click="app.updateLocationPrivacy"><i></i>{{ app.currentUser.value?.share_location ? '已开启' : '已关闭' }}</button>
     </section>
     <p v-if="loading">正在加载你的活动…</p>
+    <InboxPanel />
     <p v-if="error" class="auth-error" role="alert">{{ error }} <button @click="load">重试</button></p>
     <section v-if="app.activity.value" class="section-block">
       <h2>我的活动</h2>
@@ -78,7 +79,6 @@ onMounted(load)
       <p v-if="!app.activity.value.moments.length">还没有发布片段，从地图上选一个地点开始吧。</p>
       <div class="moment-grid"><article v-for="moment in app.activity.value.moments" :key="moment.id" class="moment-card"><small>{{ moment.location_name }} · {{ new Date(moment.created_at).toLocaleString('zh-CN') }}</small><img v-if="moment.image_url" class="moment-image" :src="api.mediaUrl(moment.image_url)" alt="我的片段图片" loading="lazy"><p>{{ moment.content }}</p><MomentActions :moment="moment" /></article></div>
     </section>
-    <InboxPanel />
     <section class="privacy-card"><div><h2>屏蔽名单</h2><p v-if="!blocks.length">你还没有屏蔽任何人。</p><div v-for="block in blocks" :key="block.id" class="echo-row"><span>{{ block.alias }}</span><button @click="unblock(block.id)">解除屏蔽</button></div></div></section>
     <section class="privacy-card danger-card">
       <div>

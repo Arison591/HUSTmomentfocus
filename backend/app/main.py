@@ -23,6 +23,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import delete, func, or_, select, text, update
 from sqlalchemy.orm import Session, selectinload
 from . import auth_security, moderation, ratelimit
+from .models import Notification
+from .registration import allowed_student_ids, require_registration_invite
 from .database import Base, SessionLocal, engine, get_db
 from .db_compat import IS_SQLITE, insert
 from .auth import (
@@ -45,8 +47,6 @@ from .social import blocked_pair, conversation_state, get_conversation, privacy_
 from .social_migrations import migrate_social
 from .schemas import AccountDeleteRequest, ConversationCreate, EchoCreate, ImageCaptionRequest, LoginRequest, MessageCreate, MomentCreate, MomentOut, PositionUpdate, PrivacyUpdate, PromptRequest, RegisterRequest, ReplySuggestionRequest, ResonanceCreate, SuggestionFeedbackCreate, VerificationRequest
 from .seed import seed_database
-from .models import Notification
-from .registration import allowed_student_ids, require_registration_invite
 
 UPLOAD_DIR = Path(os.getenv("MOUKE_UPLOAD_DIR", Path(__file__).resolve().parent / "uploads"))
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)

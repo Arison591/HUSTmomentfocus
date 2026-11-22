@@ -46,3 +46,7 @@ onMounted(() => load())
     <div class="social-actions"><button v-if="moreReports" :disabled="busy" @click="load('reports')">更多举报记录</button></div>
   </section>
 </template>
+
+<style scoped>
+.inbox-panel { background: #f7faf6; border-radius: 20px; padding: 24px; }
+</style>
